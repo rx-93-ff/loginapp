@@ -1,59 +1,64 @@
 import streamlit as st
-import sqlite3
+import mysql.connector
+from mysql.connector import Error
 import bcrypt
 
-DB_FILE = "user_data.db"
-
-# 데이터베이스 초기화
-def init_db():
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id TEXT PRIMARY KEY,
-            password TEXT,
-            gender TEXT,
-            age INTEGER,
-            face_type TEXT,
-            disc_result TEXT
+# 데이터베이스 연결 설정
+def create_connection():
+    try:
+        conn = mysql.connector.connect(
+            host="localhost",  # MySQL 서버 주소
+            user="root",       # MySQL 사용자 이름
+            password="password", # MySQL 비밀번호
+            database="streamlit_app"  # 사용하려는 데이터베이스 이름
         )
-    """)
-    conn.commit()
-    conn.close()
+        if conn.is_connected():
+            return conn
+    except Error as e:
+        st.error(f"Error connecting to MySQL: {e}")
+    return None
 
-# 비밀번호 해시 함수
+# 비밀번호 암호화
 def hash_password(password):
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 def verify_password(password, hashed):
     return bcrypt.checkpw(password.encode(), hashed.encode())
 
-# 회원가입
+# 회원가입 함수
 def register_user(user_id, password, gender, age, face_type, disc_result):
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    try:
-        cursor.execute("""
-            INSERT INTO users (id, password, gender, age, face_type, disc_result)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (user_id, password, gender, age, face_type, disc_result))
-        conn.commit()
-        return True
-    except sqlite3.IntegrityError:
-        return False
-    finally:
-        conn.close()
+    conn = create_connection()
+    if conn:
+        cursor = conn.cursor()
+        try:
+            hashed_pw = hash_password(password)
+            cursor.execute("""
+                INSERT INTO users (id, password, gender, age, face_type, disc_result)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (user_id, hashed_pw, gender, age, face_type, disc_result))
+            conn.commit()
+            st.success("회원가입 완료!")
+        except Error as e:
+            st.error(f"Error: {e}")
+        finally:
+            cursor.close()
+            conn.close()
 
-# 사용자 정보 가져오기
+# 사용자 정보 조회
 def get_user(user_id):
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT * FROM users WHERE id = ?
-    """, (user_id,))
-    user = cursor.fetchone()
-    conn.close()
-    return user
+    conn = create_connection()
+    if conn:
+        cursor = conn.cursor(dictionary=True)  # 결과를 딕셔너리 형식으로 반환
+        try:
+            cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+            user = cursor.fetchone()
+            return user
+        except Error as e:
+            st.error(f"Error: {e}")
+        finally:
+            cursor.close()
+            conn.close()
+    return None
 
 # 회원가입 페이지
 def register():
@@ -67,11 +72,7 @@ def register():
 
     if st.button("회원가입"):
         if user_id and password:
-            hashed_pw = hash_password(password)
-            if register_user(user_id, hashed_pw, gender, age, face_type, disc_result):
-                st.success("회원가입 완료!")
-            else:
-                st.error("이미 사용 중인 아이디입니다.")
+            register_user(user_id, password, gender, age, face_type, disc_result)
         else:
             st.error("모든 필드를 입력하세요.")
 
@@ -83,19 +84,19 @@ def login():
 
     if st.button("로그인"):
         user = get_user(user_id)
-        if user and verify_password(password, user[1]):  # user[1]은 저장된 비밀번호 해시
+        if user and verify_password(password, user["password"]):
             st.success(f"환영합니다, {user_id}님!")
-            st.write(f"성별: {user[2]}")
-            st.write(f"나이: {user[3]}")
-            st.write(f"얼굴상: {user[4]}")
-            st.write(f"DISC 검사 결과: {user[5]}")
+            st.write(f"성별: {user['gender']}")
+            st.write(f"나이: {user['age']}")
+            st.write(f"얼굴상: {user['face_type']}")
+            st.write(f"DISC 결과: {user['disc_result']}")
         else:
             st.error("아이디 또는 비밀번호가 잘못되었습니다.")
 
 # 메인 앱
 def main():
-    init_db()
-    menu = st.sidebar.selectbox("메뉴 선택", ["회원가입", "로그인"])
+    st.sidebar.title("메뉴")
+    menu = st.sidebar.selectbox("옵션 선택", ["회원가입", "로그인"])
 
     if menu == "회원가입":
         register()
