@@ -7,10 +7,10 @@ import bcrypt
 def create_connection():
     try:
         conn = mysql.connector.connect(
-            host="localhost",  # MySQL 서버 주소
-            user="root",       # MySQL 사용자 이름
-            password="password", # MySQL 비밀번호
-            database="streamlit_app"  # 사용하려는 데이터베이스 이름
+            host="localhost",         # MySQL 서버 주소 (phpMyAdmin 로컬의 경우 localhost)
+            user="root",              # MySQL 사용자 이름
+            password="password123",   # MySQL 비밀번호
+            database="my_streamlit_db"  # 데이터베이스 이름
         )
         if conn.is_connected():
             return conn
@@ -18,7 +18,7 @@ def create_connection():
         st.error(f"Error connecting to MySQL: {e}")
     return None
 
-# 비밀번호 암호화
+# 비밀번호 암호화 함수
 def hash_password(password):
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
@@ -33,7 +33,7 @@ def register_user(user_id, password, gender, age, face_type, disc_result):
         try:
             hashed_pw = hash_password(password)
             cursor.execute("""
-                INSERT INTO users (id, password, gender, age, face_type, disc_result)
+                INSERT INTO user_info (user_id, password, gender, age, face_type, disc_result)
                 VALUES (%s, %s, %s, %s, %s, %s)
             """, (user_id, hashed_pw, gender, age, face_type, disc_result))
             conn.commit()
@@ -44,13 +44,13 @@ def register_user(user_id, password, gender, age, face_type, disc_result):
             cursor.close()
             conn.close()
 
-# 사용자 정보 조회
+# 사용자 정보 조회 함수
 def get_user(user_id):
     conn = create_connection()
     if conn:
         cursor = conn.cursor(dictionary=True)  # 결과를 딕셔너리 형식으로 반환
         try:
-            cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+            cursor.execute("SELECT * FROM user_info WHERE user_id = %s", (user_id,))
             user = cursor.fetchone()
             return user
         except Error as e:
