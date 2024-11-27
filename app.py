@@ -10,7 +10,7 @@ def create_connection():
             host="localhost",         # MySQL 서버 주소 (phpMyAdmin 로컬의 경우 localhost)
             user="root",              # MySQL 사용자 이름
             password="password123",   # MySQL 비밀번호
-            database="my_streamlit_db"  # 데이터베이스 이름
+            database="streamlit_app"  # 데이터베이스 이름
         )
         if conn.is_connected():
             return conn
