@@ -17,7 +17,6 @@ def hash_password(password):
 # 비밀번호 확인 함수
 def verify_password(password, hashed):
     return bcrypt.checkpw(password.encode(), hashed.encode())
-
 # 회원가입 페이지
 def register():
     st.title("회원가입 페이지")
@@ -51,7 +50,9 @@ def register():
                     "얼굴상": 얼굴상,
                     "DISC 검사 결과": DISC_결과,
                 }
-                data = data.append(new_user, ignore_index=True)
+                # 수정된 부분: pd.concat 사용
+                new_data = pd.DataFrame([new_user])
+                data = pd.concat([data, new_data], ignore_index=True)
                 data.to_csv(DATA_FILE, index=False)
                 st.success("회원가입 완료!")
         else:
